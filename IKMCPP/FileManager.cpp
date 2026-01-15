@@ -1,9 +1,10 @@
 #include "FileManager.h"
+#include "Utils.h"
+#include "Directory.h"
 #include <fstream>
 #include <iostream>
 
 void SaveToFile(const std::vector<Contact>& contacts, const std::string& filename) {
-    // Если список пуст, не создаем пустой файл
     if (contacts.empty()) {
         std::cout << "Справочник пуст, сохранять нечего.\n";
         return;
@@ -31,38 +32,55 @@ void LoadFromFile(std::vector<Contact>& contacts, const std::string& filename) {
     std::ifstream file(filename);
     
     if (!file.is_open()) {
-        std::cout << "Файл " << filename << " не найден (справочник пуст).\n";
-        return;
+        return; 
     }
 
     size_t count;
-    
     if (!(file >> count)) {
-        std::cout << "Файл " << filename << " пуст или поврежден (не удалось прочитать данные).\n";
         return;
     }
     
-    file.ignore(); // Пропускаем перевод строки после числа
+    file.ignore(); // Пропускаем символ новой строки после числа count
 
     if (count == 0) {
-        std::cout << "Файл загружен, но список контактов пуст.\n";
         contacts.clear();
         return;
     }
 
     contacts.clear(); // Чистим старый список перед загрузкой
+    
+    int loadedCount = 0;
+    int skippedCount = 0;
+
     for (size_t i = 0; i < count; ++i) {
-        Contact c;
-        std::getline(file, c.name);
-        std::getline(file, c.phone);
-        std::getline(file, c.email);
+        std::string tName, tPhone, tEmail;
+
+        std::getline(file, tName);
+        std::getline(file, tPhone);
+        std::getline(file, tEmail);
         
-        // Защита от пустых строк
-        if (!c.name.empty()) {
+        bool isNameOk = IsValidName(tName);
+        bool isPhoneOk = IsValidPhone(tPhone);
+        bool isEmailOk = IsValidEmail(tEmail);
+
+        if (isNameOk && isPhoneOk && isEmailOk) {
+            Contact c;
+            c.name = tName;
+            c.phone = tPhone;
+            c.email = tEmail;
             contacts.push_back(c);
+            loadedCount++;
+        } else {
+            // Если данные повреждены, мы их пропускаем
+            skippedCount++;
         }
     }
 
-    std::cout << "Успешно загружено контактов: " << contacts.size() << ".\n";
+    std::cout << "Загружено контактов: " << loadedCount << ".\n";
+    
+    if (skippedCount > 0) {
+        std::cout << "Файл содержит ошибки\n";
+    }
+    
     file.close();
 }
